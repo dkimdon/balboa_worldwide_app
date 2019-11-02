@@ -50,8 +50,8 @@ module BWA
       send_message("\x0a\xbf\x22\x01\x00\x00")
     end
 
-    def toggle_item(args, checksum = nil)
-      send_message("\x0a\xbf\x11#{args}", checksum)
+    def toggle_item(args)
+      send_message("\x0a\xbf\x11#{args}")
     end
 
     def toggle_light1
@@ -64,6 +64,14 @@ module BWA
 
     def toggle_pump2
       toggle_item("\x05\x00")
+    end
+
+    def toggle_heating_mode
+      toggle_item("\x51\x00")
+    end
+
+    def toggle_temperature_range
+      toggle_item("\x50\x00")
     end
 
     (1..2).each do |i|

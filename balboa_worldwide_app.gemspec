@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
   s.summary = "Library for communication with Balboa Water Group's WiFi module"
   s.license = "MIT"
 
-  s.executables = ['bwa']
+  s.executables = ['bwa_aws_iot_thing']
   s.files = Dir["{bin,lib}/**/*"]
 
   s.add_dependency 'digest-crc', "~> 0.4"
