@@ -18,12 +18,6 @@ def update_spa_from_shadow(spa, aws, thing_name)
 
   message = spa.poll
 
-  if (desired['heating_mode'] == 'ready' && message.heating_mode != :ready) ||
-     (desired['heating_mode'] == 'rest' && message.heating_mode != :rest)
-    puts "change heating mode"
-    spa.toggle_heating_mode()
-  end
-
   if (desired['temperature_range'] == "low" && message.temperature_range != :low) ||
      (desired['temperature_range'] == "high" && message.temperature_range != :high)
     puts "change temperature range"
@@ -33,6 +27,12 @@ def update_spa_from_shadow(spa, aws, thing_name)
   if desired['set_temperature'] != message.set_temperature
     puts "change set_temperature"
     spa.set_temperature(desired['set_temperature'].to_i)
+  end
+
+  if (desired['heating_mode'] == 'ready' && message.heating_mode != :ready) ||
+     (desired['heating_mode'] == 'rest' && message.heating_mode != :rest)
+    puts "change heating mode"
+    spa.toggle_heating_mode()
   end
 end
 
