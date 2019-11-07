@@ -5,38 +5,12 @@ require 'bwa/client'
 require 'bwa/discovery'
 require 'json'
 
-def update_spa_from_shadow(spa, aws, thing_name)
-  resp = aws.get_thing_shadow({
-    thing_name: thing_name
-  })
-  shadow = JSON.parse(resp['payload'].string)
-  desired = shadow['state']['desired']
+SAVED_SHADOW = '/home/dkimdon/balboa_worldwide_app/shadow.json'
+reported = {}
+desired = {}
 
-  if desired == nil
-    return
-  end
-
-  message = spa.poll
-
-  if (desired['temperature_range'] == "low" && message.temperature_range != :low) ||
-     (desired['temperature_range'] == "high" && message.temperature_range != :high)
-    puts "change temperature range"
-    spa.toggle_temperature_range()
-  end
-
-  if desired['set_temperature'] != message.set_temperature
-    puts "change set_temperature"
-    spa.set_temperature(desired['set_temperature'].to_i)
-  end
-
-  if (desired['heating_mode'] == 'ready' && message.heating_mode != :ready) ||
-     (desired['heating_mode'] == 'rest' && message.heating_mode != :rest)
-    puts "change heating mode"
-    spa.toggle_heating_mode()
-  end
-end
-
-def update_spa_shadow(spa, aws, thing_name)
+def get_reported(spa)
+  # Get current state from spa
   message = spa.poll
   reported = {}
   reported['temperature'] = message.current_temperature.to_i
@@ -55,14 +29,66 @@ def update_spa_shadow(spa, aws, thing_name)
 
   reported['set_temperature'] = message.set_temperature.to_i
 
-  shadow = { "state" => { "reported" => reported}}
+  return reported
+end
+
+def spa_control(spa, aws, thing_name)
+
+  # Read saved shadow
+  previous_shadow = JSON.parse(File.read(SAVED_SHADOW))
+  # TODO - what to do if there is no previous shadow?
+
+  previous_desired = previous_shadow['state']['desired']
+  previous_reported = previous_shadow['state']['reported']
+
+  # Get current shadow from AWS
+  resp = aws.get_thing_shadow({
+    thing_name: thing_name
+  })
+  current_shadow = JSON.parse(resp['payload'].string)
+  current_desired = current_shadow['state']['desired']
+
+  current_reported = get_reported(spa)
+
+  new_shadow = { }
+
+  if (current_reported['set_temperature'] != previous_reported['set_temperature']) ||
+     (current_reported['temperature_range'] != previous_reported['temperature_range']) ||
+     (current_reported['heating_mode'] != previous_reported['heating_mode'])
+    # Someone changed the spa state, possibly by the front panel, update desired state
+    # to match
+    new_shadow = { "state" => { "reported" => current_reported, "desired" => current_reported}}
+  else
+
+    if current_desired['temperature_range'] != current_reported['temperature_range']
+      puts "change temperature range"
+      spa.toggle_temperature_range()
+    end
+
+    if current_desired['set_temperature'] != current_reported['set_temperature']
+      puts "change set_temperature"
+      spa.set_temperature(current_desired['set_temperature'].to_i)
+    end
+
+    if current_desired['heating_mode'] != current_reported['heating_mode']
+      puts "change heating mode"
+      spa.toggle_heating_mode()
+    end
+
+    # Now read from spa
+    current_reported = get_reported(spa)
+
+    new_shadow = { "state" => { "reported" => current_reported, "desired" => current_desired}}
+  end
 
   r = aws.update_thing_shadow({
     thing_name: thing_name,
-    payload: shadow.to_json
+    payload: new_shadow.to_json
   })
 
-  puts reported
+  File.open(SAVED_SHADOW,"w") do |f|
+    f.write(new_shadow.to_json)
+  end
 end
 
 spas = BWA::Discovery.discover
@@ -81,6 +107,5 @@ aws = Aws::IoTDataPlane::Client.new(
 
 thing_name = "HotTub"
 
-update_spa_from_shadow(spa, aws, thing_name)
-update_spa_shadow(spa, aws, thing_name)
+spa_control(spa, aws, thing_name)
 
