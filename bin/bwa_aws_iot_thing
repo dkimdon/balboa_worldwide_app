@@ -36,17 +36,29 @@ def spa_control(spa, aws, thing_name)
 
   # Read saved shadow
   previous_shadow = JSON.parse(File.read(SAVED_SHADOW))
-  # TODO - what to do if there is no previous shadow?
+  # TODO - what to do if there is no previous shadow?    
 
   previous_desired = previous_shadow['state']['desired']
   previous_reported = previous_shadow['state']['reported']
 
   # Get current shadow from AWS
+  # TODO - catch exception if there is no shadow
   resp = aws.get_thing_shadow({
     thing_name: thing_name
   })
   current_shadow = JSON.parse(resp['payload'].string)
-  current_desired = current_shadow['state']['desired']
+
+  if current_shadow == nil
+    r = aws.update_thing_shadow({
+      thing_name: thing_name,
+      payload: previous_shadow.to_json
+    })
+    return
+  end
+
+  current_desired = { "set_temperature" => current_shadow['state']['desired']['set_temperature'],
+                      "temperature_range" => current_shadow['state']['desired']['temperature_range'],
+                      "heating_mode" => current_shadow['state']['desired']['heating_mode']}
 
   current_reported = get_reported(spa)
 
@@ -57,7 +69,10 @@ def spa_control(spa, aws, thing_name)
      (current_reported['heating_mode'] != previous_reported['heating_mode'])
     # Someone changed the spa state, possibly by the front panel, update desired state
     # to match
-    new_shadow = { "state" => { "reported" => current_reported, "desired" => current_reported}}
+    new_desired = { "set_temperature" => current_reported['set_temperature'],
+                     "temperature_range" => current_reported['temperature_range'],
+                     "heating_mode" => current_reported['heating_mode']}
+    new_shadow = { "state" => { "reported" => current_reported, "desired" => new_desired}}
   else
 
     if current_desired['temperature_range'] != current_reported['temperature_range']
@@ -78,9 +93,14 @@ def spa_control(spa, aws, thing_name)
     # Now read from spa
     current_reported = get_reported(spa)
 
-    new_shadow = { "state" => { "reported" => current_reported, "desired" => current_desired}}
+    new_desired = { "set_temperature" => current_reported['set_temperature'],
+                     "temperature_range" => current_reported['temperature_range'],
+                     "heating_mode" => current_reported['heating_mode']}
+
+    new_shadow = { "state" => { "reported" => current_reported, "desired" => new_desired}}
   end
 
+  puts new_shadow
   r = aws.update_thing_shadow({
     thing_name: thing_name,
     payload: new_shadow.to_json
