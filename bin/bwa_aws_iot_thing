@@ -40,6 +40,8 @@ def spa_control(spa, aws, thing_name)
     thing_name: thing_name
   })
   current_shadow = JSON.parse(resp['payload'].string)
+  puts "current_shadow:"
+  puts current_shadow
 
   # Read saved shadow
   if !File.exists?(SAVED_SHADOW)
@@ -47,11 +49,13 @@ def spa_control(spa, aws, thing_name)
   else
     previous_shadow = JSON.parse(File.read(SAVED_SHADOW))
   end
+  puts "previous_shadow:"
+  puts previous_shadow
 
-  previous_desired = previous_shadow['state']['desired']
   previous_reported = previous_shadow['state']['reported']
 
   if current_shadow == nil
+    puts "current shadow empty"
     r = aws.update_thing_shadow({
       thing_name: thing_name,
       payload: previous_shadow.to_json
@@ -64,6 +68,8 @@ def spa_control(spa, aws, thing_name)
                       "heating_mode" => current_shadow['state']['desired']['heating_mode']}
 
   current_reported = get_reported(spa)
+  puts "current_reported:"
+  puts current_reported
 
   new_shadow = { }
 
@@ -76,43 +82,70 @@ def spa_control(spa, aws, thing_name)
                      "temperature_range" => current_reported['temperature_range'],
                      "heating_mode" => current_reported['heating_mode']}
     new_shadow = { "state" => { "reported" => current_reported, "desired" => new_desired}}
+
+    puts "controlled state overridden by external process, no changes to tub, new shadow:"
+    puts new_shadow
+    r = aws.update_thing_shadow({
+      thing_name: thing_name,
+      payload: new_shadow.to_json
+    })
+
+    File.open(SAVED_SHADOW,"w") do |f|
+      f.write(new_shadow.to_json)
+    end
+
   else
 
     if current_desired['temperature_range'] != current_reported['temperature_range']
       puts "change temperature range"
       spa.toggle_temperature_range()
+      current_reported = get_reported(spa)
+      if current_reported['temperature_range'] != current_desired['temperature_range']
+        puts "temperature range did not change"
+      end
     end
 
     if current_desired['set_temperature'] != current_reported['set_temperature']
       puts "change set_temperature"
       spa.set_temperature(current_desired['set_temperature'].to_i)
+      current_reported = get_reported(spa)
+      if current_reported['set_temperature'] != current_desired['set_temperature']
+        puts "set temperature failed to change to desired value"
+      end
     end
 
     if current_desired['heating_mode'] != current_reported['heating_mode']
       puts "change heating mode"
       spa.toggle_heating_mode()
+      current_reported = get_reported(spa)
+      if current_reported['heating_mode'] != current_desired['heating_mode']
+        puts "heating mode did not change"
+      end
     end
-
-    # Now read from spa
     current_reported = get_reported(spa)
+    puts "new reported:"
+    puts current_reported
 
-    new_desired = { "set_temperature" => current_reported['set_temperature'],
-                     "temperature_range" => current_reported['temperature_range'],
-                     "heating_mode" => current_reported['heating_mode']}
+    # Only change the 'reported' part of the shadow in AWS.
+    new_shadow = { "state" => { "reported" => current_reported}}
+    puts "upadated spa reported state, new shadow to aws:"
+    puts new_shadow
+    r = aws.update_thing_shadow({
+      thing_name: thing_name,
+      payload: new_shadow.to_json
+    })
 
-    new_shadow = { "state" => { "reported" => current_reported, "desired" => new_desired}}
-  end
-
-  puts new_shadow
-  r = aws.update_thing_shadow({
-    thing_name: thing_name,
-    payload: new_shadow.to_json
-  })
-
-  File.open(SAVED_SHADOW,"w") do |f|
-    f.write(new_shadow.to_json)
+    # Save 'reported' and 'desired' shadow locally.
+    new_shadow = { "state" => { "reported" => current_reported, "desired" => current_desired}}
+    puts "new saved shadow:"
+    puts new_shadow
+    File.open(SAVED_SHADOW,"w") do |f|
+      f.write(new_shadow.to_json)
+    end
   end
 end
+
+puts Time.now.inspect
 
 spas = BWA::Discovery.discover
 if spas.empty?
