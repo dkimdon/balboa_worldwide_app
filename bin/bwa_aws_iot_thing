@@ -34,19 +34,22 @@ end
 
 def spa_control(spa, aws, thing_name)
 
-  # Read saved shadow
-  previous_shadow = JSON.parse(File.read(SAVED_SHADOW))
-  # TODO - what to do if there is no previous shadow?    
-
-  previous_desired = previous_shadow['state']['desired']
-  previous_reported = previous_shadow['state']['reported']
-
   # Get current shadow from AWS
   # TODO - catch exception if there is no shadow
   resp = aws.get_thing_shadow({
     thing_name: thing_name
   })
   current_shadow = JSON.parse(resp['payload'].string)
+
+  # Read saved shadow
+  if !File.exists?(SAVED_SHADOW)
+    previous_shadow = current_shadow
+  else
+    previous_shadow = JSON.parse(File.read(SAVED_SHADOW))
+  end
+
+  previous_desired = previous_shadow['state']['desired']
+  previous_reported = previous_shadow['state']['reported']
 
   if current_shadow == nil
     r = aws.update_thing_shadow({
