@@ -51,6 +51,7 @@ def spa_control(spa, aws, thing_name)
     current_shadow['state']['desired']['set_temperature'] = 55
     current_shadow['state']['desired']['temperature_range'] = 'low'
     current_shadow['state']['desired']['heating_mode'] = 'rest'
+    current_shadow['state']['desired']['last_set_by'] = 'midnight-auto-turn-off'
     aws.update_thing_shadow({
       thing_name: thing_name,
       payload: current_shadow.to_json
