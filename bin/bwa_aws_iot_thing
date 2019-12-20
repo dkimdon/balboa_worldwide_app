@@ -43,6 +43,20 @@ def spa_control(spa, aws, thing_name)
   puts "current_shadow:"
   puts current_shadow
 
+  now = Time.new
+  if (now.hour == 0 && current_shadow['state']['desired']['set_temperature'] != 55 &&
+      current_shadow['state']['desired']['temperature_range'] != 'low' &&
+      current_shadow['state']['desired']['heating_mode'] != 'rest')
+    puts "It is midnight, turning tub off"
+    current_shadow['state']['desired']['set_temperature'] = 55
+    current_shadow['state']['desired']['temperature_range'] = 'low'
+    current_shadow['state']['desired']['heating_mode'] = 'rest'
+    aws.update_thing_shadow({
+      thing_name: thing_name,
+      payload: current_shadow.to_json
+    })
+  end
+
   # Read saved shadow
   if !File.exists?(SAVED_SHADOW)
     previous_shadow = current_shadow
