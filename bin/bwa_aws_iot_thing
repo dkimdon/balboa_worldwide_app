@@ -9,11 +9,32 @@ SAVED_SHADOW = '/home/dkimdon/balboa_worldwide_app/shadow.json'
 reported = {}
 desired = {}
 
-def get_reported(spa)
+def get_reported(spa, previous_reported)
   # Get current state from spa
   message = spa.poll
   reported = {}
-  reported['temperature'] = message.current_temperature.to_i
+
+  # XXX - The spa reports a temperature for some amount of time after it has
+  # been set to rest mode.  At some point after the spa is set to rest mode
+  # (days?  hours?) the spa reports a null value for the temperature.
+
+  # - How long will it report the temperature while in rest mode?
+
+  # - How accurate is the temperature reading while it is in rest mode?
+
+  # - Would it be better to ignore temperature readings when the spa is in
+  # rest mode?
+
+  if message.current_temperature
+    reported['temperature'] = message.current_temperature.to_i
+    reported['temperature_timestamp'] = Time.now.to_i
+  else
+    # The spa is not currently reporting a temperature, continue to
+    # report the old temperature.
+    reported['temperature'] = previous_reported['temperature']
+    reported['temperature_timestamp'] = previous_reported['temperature_timestamp']
+  end
+
 
   if message.temperature_range == :low
     reported['temperature_range'] = "low"
@@ -81,7 +102,7 @@ def spa_control(spa, aws, thing_name)
                       "temperature_range" => current_shadow['state']['desired']['temperature_range'],
                       "heating_mode" => current_shadow['state']['desired']['heating_mode']}
 
-  current_reported = get_reported(spa)
+  current_reported = get_reported(spa, previous_reported)
   puts "current_reported:"
   puts current_reported
 
@@ -113,7 +134,7 @@ def spa_control(spa, aws, thing_name)
     if current_desired['temperature_range'] != current_reported['temperature_range']
       puts "change temperature range"
       spa.toggle_temperature_range()
-      current_reported = get_reported(spa)
+      current_reported = get_reported(spa, previous_reported)
       if current_reported['temperature_range'] != current_desired['temperature_range']
         puts "temperature range did not change"
       end
@@ -122,7 +143,7 @@ def spa_control(spa, aws, thing_name)
     if current_desired['set_temperature'] != current_reported['set_temperature']
       puts "change set_temperature"
       spa.set_temperature(current_desired['set_temperature'].to_i)
-      current_reported = get_reported(spa)
+      current_reported = get_reported(spa, previous_reported)
       if current_reported['set_temperature'] != current_desired['set_temperature']
         puts "set temperature failed to change to desired value"
       end
@@ -131,12 +152,12 @@ def spa_control(spa, aws, thing_name)
     if current_desired['heating_mode'] != current_reported['heating_mode']
       puts "change heating mode"
       spa.toggle_heating_mode()
-      current_reported = get_reported(spa)
+      current_reported = get_reported(spa, previous_reported)
       if current_reported['heating_mode'] != current_desired['heating_mode']
         puts "heating mode did not change"
       end
     end
-    current_reported = get_reported(spa)
+    current_reported = get_reported(spa, previous_reported)
     puts "new reported:"
     puts current_reported
 
