@@ -1,0 +1,35 @@
+Rough notes on how I installed this inside termux:
+
+    1  whoami
+    2  git
+    3  ssh
+    4  ssh-keygen 
+    5  pwd
+    6  ls
+    7  cd .ssh/
+    8  ls
+    9  cat id_rsa.pub 
+   10  cd ..
+   11  ls
+   12  pwd
+   13  git clone git@github.com:dkimdon/balboa_worldwide_app.git
+   14  ls
+   15  cd balboa_worldwide_app/
+   16  ls
+   17  cd bin/
+   18  ls
+   19  ./bwa_client 
+   20  pwd
+   21  cd ..
+   22  ls
+   23  more Makefile 
+   24  gem build balboa_worldwide_app.gemspec 
+   25  sudo -s
+   26  gem install balboa_worldwide_app-1.0.0.gem 
+   27  ls
+   28  cd bin/
+   29  ls
+   30  ./bwa_client 
+   31  ./bwa_aws_iot_thing 
+   34  more README.md 
+   36  gem install aws-sdk-iotdataplane
