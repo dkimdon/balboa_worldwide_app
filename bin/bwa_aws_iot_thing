@@ -5,7 +5,7 @@ require 'bwa/client'
 require 'bwa/discovery'
 require 'json'
 
-SAVED_SHADOW = '/home/dkimdon/balboa_worldwide_app/shadow.json'
+SAVED_SHADOW = 'shadow.json'
 reported = {}
 desired = {}
 
@@ -24,6 +24,8 @@ def get_reported(spa, previous_reported)
 
   # - Would it be better to ignore temperature readings when the spa is in
   # rest mode?
+
+  reported['last_seen_timestamp'] = Time.now.to_i
 
   if message.current_temperature
     reported['temperature'] = message.current_temperature.to_i
