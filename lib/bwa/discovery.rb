@@ -11,7 +11,7 @@ module BWA
         spas = {}
         loop do
           if IO.select([socket], nil, nil, timeout)
-            msg, ip = socket.recvfrom(64)
+            msg, ip = socket.recvfrom_nonblock(64)
             ip = ip[2]
             name, mac = msg.split("\r\n")
             name.strip!
@@ -31,7 +31,7 @@ module BWA
         socket.bind("0.0.0.0", 30303)
         msg = "BWGSPA\r\n00-15-27-00-00-01\r\n"
         loop do
-          data, addr = socket.recvfrom(32)
+          data, addr = socket.recvfrom_nonblock(32)
           next unless data == 'Discovery: Who is out there?'
           ip = addr.last
           puts "Advertising to #{ip}"
