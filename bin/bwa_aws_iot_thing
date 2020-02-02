@@ -102,7 +102,8 @@ def spa_control(spa, aws, thing_name)
 
   current_desired = { "set_temperature" => current_shadow['state']['desired']['set_temperature'],
                       "temperature_range" => current_shadow['state']['desired']['temperature_range'],
-                      "heating_mode" => current_shadow['state']['desired']['heating_mode']}
+                      "heating_mode" => current_shadow['state']['desired']['heating_mode'],
+                      "external_controller" => current_shadow['state']['desired']['external_controller']}
 
   current_reported = get_reported(spa, previous_reported)
   puts "current_reported:"
@@ -117,7 +118,8 @@ def spa_control(spa, aws, thing_name)
     # to match
     new_desired = { "set_temperature" => current_reported['set_temperature'],
                      "temperature_range" => current_reported['temperature_range'],
-                     "heating_mode" => current_reported['heating_mode']}
+                     "heating_mode" => current_reported['heating_mode'],
+                     "external_controller" =>  true}
     new_shadow = { "state" => { "reported" => current_reported, "desired" => new_desired}}
 
     puts "controlled state overridden by external process, no changes to tub, new shadow:"
@@ -135,6 +137,7 @@ def spa_control(spa, aws, thing_name)
 
     if current_desired['temperature_range'] != current_reported['temperature_range']
       puts "change temperature range"
+      current_desired['external_controller'] = false
       spa.toggle_temperature_range()
       current_reported = get_reported(spa, previous_reported)
       if current_reported['temperature_range'] != current_desired['temperature_range']
@@ -144,6 +147,7 @@ def spa_control(spa, aws, thing_name)
 
     if current_desired['set_temperature'] != current_reported['set_temperature']
       puts "change set_temperature"
+      current_desired['external_controller'] = false
       spa.set_temperature(current_desired['set_temperature'].to_i)
       current_reported = get_reported(spa, previous_reported)
       if current_reported['set_temperature'] != current_desired['set_temperature']
@@ -153,6 +157,7 @@ def spa_control(spa, aws, thing_name)
 
     if current_desired['heating_mode'] != current_reported['heating_mode']
       puts "change heating mode"
+      current_desired['external_controller'] = false
       spa.toggle_heating_mode()
       current_reported = get_reported(spa, previous_reported)
       if current_reported['heating_mode'] != current_desired['heating_mode']
@@ -164,7 +169,7 @@ def spa_control(spa, aws, thing_name)
     puts current_reported
 
     # Only change the 'reported' part of the shadow in AWS.
-    new_shadow = { "state" => { "reported" => current_reported}}
+    new_shadow = { "state" => { "reported" => current_reported, "desired" => { "external_controller" => current_desired['external_controller']}}}
     puts "upadated spa reported state, new shadow to aws:"
     puts new_shadow
     r = aws.update_thing_shadow({
